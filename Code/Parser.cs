@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Parser : MonoBehaviour {
 
@@ -12,36 +13,37 @@ public class Parser : MonoBehaviour {
      * (afficher un texte, modifier une image, demander un choix au joueur, etc...)
      * 
      * TODO::
-     *  Faire un systeme de choix
      *  Changer le tableau de string en Queue de string
-     *  Optimiser le chargement des lignes de texte (notamment la memoire prise par le programme)
      *  Créer une structure de commande pour en ajouter ou modifier facilement (aka les <end> / <choix> / etc) sans avoir a tout hardcoder
      *
      */
+
      
     public DialogManager dm;    // reference au script qui va afficher les phrases a l'ecran
 
     private string[] dialog;
-    private int i;
+    private int ii;
+
+    private bool inChoice = false;
 
     private void Start()
     {
         LoadFile("test.txt");
-        i = 0;
+        ii = 0;
     }
 
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            i = ParseLine(i);
+            ii = ParseLine(ii);
         }
     }
 
     #region Functions
     private int ParseLine(int index)
     {
-        if (index < dialog.Length -1)
+        if (!inChoice && index < dialog.Length -1)
         {
             // modife le nom de la personne qui parle
             if(CustomStartsWith(dialog[index], "<n>"))
@@ -57,19 +59,28 @@ public class Parser : MonoBehaviour {
                 index = ParseLine(index);
                 return index;
             }
+            // saut selon une clef
+            else if(CustomStartsWith(dialog[index], "<jc>"))
+            {
+                string sub = dialog[index].Substring(4);
+                index = SearchKey(sub, index) + 1;
 
+            }
+
+            // demarre une sequence de choix
             if (CustomStartsWith(dialog[index], "<choix>") || CustomStartsWith(dialog[index], "\r\n<choix>"))
             {
+                ChoiceSetter(true);
+                //dm.ClearButton();
                 index++;
                 while (!CustomStartsWith(dialog[index], "<finchoix>"))
                 {
-                    //Faire apparaitre une boite de choix
-                    //public void PopChoice(string txt, string(|| int) key);
-                    // But : créer un bouton, qui appelera une fonction pour modifier l'index en fonction du retour
-                    DebugLine(index++);
+                    //DebugLine(index++);
+                    string[] c = dialog[index++].Split(new string[] { "::" }, System.StringSplitOptions.None);
+                    dm.CreateButton(c[0], c[1]);
                 }
-                index++;
             }
+            // Affiche simplement la phrase
             else
             {
                 dm.DisplaySentence(dialog[index++]);
@@ -77,7 +88,22 @@ public class Parser : MonoBehaviour {
         }
         return index;
     }
+    
+    private int SearchKey(string key, int i)
+    {
+        while (!CustomStartsWith(dialog[++i], key))
+        {
+            //Debug.Log(dialog[i]);
+        }
+        return i;
+    }
 
+    public void SearchRep(string key)
+    {
+        ii = SearchKey(key, ii) +1;
+        //Debug.Log(key);
+    }
+    
     private void DebugLine(int index)
     {
         if (index < dialog.Length)
@@ -88,6 +114,7 @@ public class Parser : MonoBehaviour {
     #endregion
 
     #region Helper
+    // charge un fichier pour qu'il puisse etre parsé
     private void LoadFile(string fname)
     {
         string text = System.IO.File.ReadAllText(fname);
@@ -107,6 +134,12 @@ public class Parser : MonoBehaviour {
         }
 
         return (bp == bLen && aLen >= bLen) || (ap == aLen && bLen >= aLen);
+    }
+
+    // setter
+    public void ChoiceSetter(bool b)
+    {
+        inChoice = b;
     }
     #endregion
 
